@@ -1,0 +1,299 @@
+<html><head><base href="https://websim.ai/poetry-ai/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PoésiAI - Générateur Rapide de Poésie et d'Images Hyper-Réalistes</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
+  
+  body {
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  h1 {
+    text-align: center;
+    color: #2c3e50;
+    font-size: 3rem;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+  }
+  .poetry-container {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+  }
+  .poetry-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  }
+  #poem {
+    font-style: italic;
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+    line-height: 1.8;
+    text-align: center;
+    color: #34495e;
+    white-space: pre-wrap;
+  }
+  #image-container {
+    text-align: center;
+    margin-bottom: 30px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 15px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    min-height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #generated-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 15px;
+    transition: transform 0.3s ease;
+  }
+  #image-container:hover #generated-image {
+    transform: scale(1.05);
+  }
+  .button-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  button, input[type="text"] {
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    font-size: 1rem;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  button:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+  }
+  button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+  }
+  .share-buttons {
+    display: flex;
+    gap: 15px;
+  }
+  #share-twitter {
+    background-color: #1da1f2;
+  }
+  #share-twitter:hover {
+    background-color: #0c85d0;
+  }
+  #share-facebook {
+    background-color: #4267B2;
+  }
+  #share-facebook:hover {
+    background-color: #365899;
+  }
+  #loading {
+    display: none;
+    text-align: center;
+    margin-top: 20px;
+    font-style: italic;
+    color: #7f8c8d;
+  }
+  #prompt-input {
+    width: 100%;
+    margin-bottom: 20px;
+    background-color: white;
+    color: #333;
+    padding: 12px 20px;
+    border: 2px solid #3498db;
+    outline: none;
+    transition: all 0.3s ease;
+  }
+  #prompt-input:focus {
+    border-color: #2980b9;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+  }
+  .error {
+    color: #e74c3c;
+    text-align: center;
+    margin-top: 10px;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>PoésiAI</h1>
+    <div class="poetry-container">
+      <input type="text" id="prompt-input" placeholder="Entrez votre prompt ici (ex: amour sous la pluie, nature sauvage, etc.)">
+      <div id="poem">Entrez un prompt et cliquez sur "Générer" pour créer une nouvelle poésie et une image correspondante</div>
+      <div id="image-container">
+        <img id="generated-image" alt="Image hyper-réaliste générée par IA correspondant à la poésie" src="https://via.placeholder.com/800x600?text=Image+IA+Hyper-Réaliste" width="800" height="600">
+      </div>
+      <div class="button-container">
+        <button id="generate-btn">Générer</button>
+        <div class="share-buttons">
+          <button id="share-twitter">Partager sur Twitter</button>
+          <button id="share-facebook">Partager sur Facebook</button>
+        </div>
+      </div>
+      <div id="loading">Génération en cours...</div>
+      <div id="error" class="error"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder"></script>
+
+  <script>
+    let model;
+    let poem = "";
+    const errorElement = document.getElementById('error');
+    const generateBtn = document.getElementById('generate-btn');
+    const loadingElement = document.getElementById('loading');
+    const poemElement = document.getElementById('poem');
+    const promptInput = document.getElementById('prompt-input');
+    const imageContainer = document.getElementById('image-container');
+    const generatedImage = document.getElementById('generated-image');
+
+    async function loadModel() {
+      try {
+        model = await use.load();
+        console.log("Modèle chargé avec succès");
+      } catch (error) {
+        console.error("Erreur lors du chargement du modèle:", error);
+        errorElement.textContent = "Erreur lors du chargement du modèle. Veuillez réessayer plus tard.";
+      }
+    }
+
+    loadModel();
+
+    async function generatePoem() {
+      const prompt = promptInput.value.trim();
+      if (!prompt) {
+        errorElement.textContent = "Veuillez entrer un prompt avant de générer une poésie.";
+        return;
+      }
+
+      errorElement.textContent = "";
+      loadingElement.style.display = 'block';
+      generateBtn.disabled = true;
+
+      try {
+        const embedding = await model.embed([prompt]);
+        const poemVector = embedding.arraySync()[0];
+
+        poem = `Dans l'univers de ${prompt},\n`;
+        poem += `Un ${poemVector[0] > 0 ? "murmure" : "éclat"} s'éveille doucement.\n`;
+        poem += `Les ${poemVector[1] > 0 ? "étoiles" : "vagues"} dansent avec l'infini,\n`;
+        poem += `Et ${poemVector[2] > 0 ? "l'âme" : "le cœur"} s'envole lentement.\n`;
+        poem += `\nLe ${poemVector[3] > 0 ? "silence" : "tumulte"} des ${poemVector[4] > 0 ? "saisons" : "émotions"},\n`;
+        poem += `Peint un tableau de ${poemVector[5] > 0 ? "mystère" : "clarté"}.\n`;
+        poem += `Dans ce ${poemVector[6] > 0 ? "jardin" : "désert"} de sensations,\n`;
+        poem += `La ${poemVector[7] > 0 ? "beauté" : "vérité"} se dévoile, libérée.`;
+
+        poemElement.innerText = poem;
+        await generateHyperRealisticImage(prompt);
+      } catch (error) {
+        console.error("Erreur lors de la génération de la poésie:", error);
+        errorElement.textContent = "Une erreur s'est produite lors de la génération de la poésie. Veuillez réessayer.";
+      } finally {
+        loadingElement.style.display = 'none';
+        generateBtn.disabled = false;
+      }
+    }
+
+    async function generateHyperRealisticImage(prompt) {
+      const imagePrompt = `hyper-realistic ${prompt} scene, 8K resolution, highly detailed, professional photography`;
+      
+      try {
+        // Simulons une requête à une API de génération d'images
+        const response = await fetch('https://api.example.com/generate-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ prompt: imagePrompt }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          generatedImage.src = data.imageUrl;
+          generatedImage.alt = `Image hyper-réaliste générée par IA basée sur le prompt: ${prompt}`;
+        } else {
+          throw new Error('Erreur lors de la génération de l\'image');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la génération de l\'image:', error);
+        // Utilisons une image de remplacement en cas d'erreur
+        generatedImage.src = `https://source.unsplash.com/800x600/?${encodeURIComponent(prompt)}`;
+        generatedImage.alt = `Image de remplacement basée sur le prompt: ${prompt}`;
+      }
+    }
+
+    function shareTwitter() {
+      const tweetText = encodeURIComponent(poem + "\n\nGénéré par PoésiAI");
+      window.open(`https://twitter.com/intent/tweet?text=${tweetText}`, '_blank');
+    }
+
+    function shareFacebook() {
+      const url = encodeURIComponent(window.location.href);
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+    }
+
+    generateBtn.addEventListener('click', generatePoem);
+    document.getElementById('share-twitter').addEventListener('click', shareTwitter);
+    document.getElementById('share-facebook').addEventListener('click', shareFacebook);
+
+    // Ajouter un écouteur d'événements pour la touche "Entrée" sur le champ de saisie
+    promptInput.addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        generatePoem();
+      }
+    });
+
+    // Optimisation des performances
+    const debouncedGeneratePoem = debounce(generatePoem, 300);
+
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    // Pré-chargement de l'image de placeholder
+    const placeholderImage = new Image();
+    placeholderImage.src = "https://via.placeholder.com/800x600?text=Image+IA+Hyper-Réaliste";
+  </script>
+</body></html>
